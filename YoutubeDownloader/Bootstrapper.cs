@@ -1,10 +1,13 @@
-﻿using System.Windows;
-using System.Windows.Threading;
-using Stylet;
+﻿using Stylet;
 using StyletIoC;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.ViewModels;
 using YoutubeDownloader.ViewModels.Framework;
+
+#if !DEBUG
+using System.Windows;
+using System.Windows.Threading;
+#endif
 
 namespace YoutubeDownloader
 {
@@ -14,21 +17,22 @@ namespace YoutubeDownloader
         {
             base.ConfigureIoC(builder);
 
-            // Bind SettingsService as singleton
-            builder.Bind<SettingsService>().ToSelf().InSingletonScope();
-
-            // Bind DownloadService as singleton
+            // Bind singleton services singleton
             builder.Bind<DownloadService>().ToSelf().InSingletonScope();
+            builder.Bind<SettingsService>().ToSelf().InSingletonScope();
+            builder.Bind<TaggingService>().ToSelf().InSingletonScope();
 
             // Bind view model factory
             builder.Bind<IViewModelFactory>().ToAbstractFactory();
         }
 
+#if !DEBUG
         protected override void OnUnhandledException(DispatcherUnhandledExceptionEventArgs e)
         {
             base.OnUnhandledException(e);
 
             MessageBox.Show(e.Exception.ToString(), "Error occured", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+#endif
     }
 }

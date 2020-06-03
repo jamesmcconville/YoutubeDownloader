@@ -1,3 +1,59 @@
+### v1.7.8 (10-May-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v5.0.4.
+
+### v1.7.7 (07-May-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v5.0.3.
+- Fixed an issue where conversion progress was not correctly reported. Updated to YoutubeExplode.Converter v1.5.1.
+
+### v1.7.6 (13-Apr-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v5.0.1.
+- Improved media tagging. Now it's less reliant on MusicBrainz and should attempt to tag files more often.
+- Fixed some issues related to auto-update functionality.
+
+### v1.7.5 (16-Mar-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v4.7.16.
+
+### v1.7.4 (11-Mar-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v4.7.14.
+
+### v1.7.3 (10-Feb-2020)
+
+- Fixed various YouTube-related issues. Updated to YoutubeExplode v4.7.13.
+
+### v1.7.2 (15-Dec-2019)
+
+- Fixed an issue where some videos didn't have any download options. Updated to YoutubeExplode v4.7.11.
+
+### v1.7.1 (15-Nov-2019)
+
+- Fixed an issue where trying to download a single video resulted in an error.
+
+### v1.7 (14-Nov-2019)
+
+- Migrated to .NET Core 3. You will need to install .NET Core runtime in order to run this application starting from this version. You can download it [here](https://dotnet.microsoft.com/download/dotnet-core/current/runtime).
+- Added setting "Skip downloads for files that already exist" which, when enabled, skips downloading videos that already have a matching file in the destination directory. Thanks [@mostafa901](https://github.com/mostafa901).
+- Changed default file name template to `$title`. You can change it in settings.
+- Fixed an issue where the number token in file name template didn't get replaced properly for single-video downloads.
+
+### v1.6.1 (22-Sep-2019)
+
+- Fixed an issue where starting new downloads was not possible if there were already active downloads.
+
+### v1.6 (14-Sep-2019)
+
+- Added support for processing multiple queries in one go. Separate multiple URLs/IDs/searches with new lines (Shift+Enter) to specify multiple queries.
+- Added file name template which is used when generating file names for downloaded videos. You can configure it in settings. Refer to the tooltip text for information on what each variable does.
+- Added automatic media tagging for downloaded videos (currently only audio files). Tags are resolved from MusicBrainz based on video title. This feature can be disabled in settings.
+- Added a context menu button to remove all successfully finished downloads.
+- Added a context menu button to restart all failed downloads.
+- Added a context menu button to copy title in download setup dialog.
+- Starting a new download that overwrites an existing download will now remove the latter from the list.
+
 ### v1.5.7 (15-Aug-2019)
 
 - Fixed an issue where some videos failed to download. Updated to YoutubeExplode v4.7.9.

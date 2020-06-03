@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using YoutubeDownloader.Models;
 using YoutubeExplode;
 using YoutubeExplode.Converter;
-using YoutubeExplode.Models.MediaStreams;
+using YoutubeExplode.Videos.Streams;
 
 namespace YoutubeDownloader.Services
 {
@@ -15,7 +15,7 @@ namespace YoutubeDownloader.Services
     {
         private readonly SettingsService _settingsService;
 
-        private readonly IYoutubeClient _youtubeClient = new YoutubeClient();
+        private readonly YoutubeClient _youtube = new YoutubeClient();
         private readonly IYoutubeConverter _youtubeConverter = new YoutubeConverter();
 
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
@@ -31,21 +31,18 @@ namespace YoutubeDownloader.Services
 
         private async Task EnsureThrottlingAsync(CancellationToken cancellationToken)
         {
-            // Gain lock
             await _semaphore.WaitAsync(cancellationToken);
 
             try
             {
-                // Spin-wait until other downloads finish so that the number of concurrent downloads doesn't exceed the maximum
+                // Wait until other downloads finish so that the number of concurrent downloads doesn't exceed the maximum
                 while (_concurrentDownloadCount >= _settingsService.MaxConcurrentDownloadCount)
                     await Task.Delay(350, cancellationToken);
 
-                // Increment concurrent download count
                 Interlocked.Increment(ref _concurrentDownloadCount);
             }
             finally
             {
-                // Release the lock
                 _semaphore.Release();
             }
         }
@@ -53,100 +50,59 @@ namespace YoutubeDownloader.Services
         public async Task DownloadVideoAsync(DownloadOption downloadOption, string filePath,
             IProgress<double> progress, CancellationToken cancellationToken)
         {
-            // Ensure throttling and increment concurrent download count
             await EnsureThrottlingAsync(cancellationToken);
 
             try
             {
-                // Download the video
-                await _youtubeConverter.DownloadAndProcessMediaStreamsAsync(downloadOption.MediaStreamInfos,
-                    filePath, downloadOption.Format,
+                await _youtubeConverter.DownloadAndProcessMediaStreamsAsync(downloadOption.StreamInfos,
+                    filePath, downloadOption.Format, ConversionPreset.Medium,
                     progress, cancellationToken);
             }
             finally
             {
-                // Decrement concurrent download count
                 Interlocked.Decrement(ref _concurrentDownloadCount);
             }
         }
 
         public async Task<IReadOnlyList<DownloadOption>> GetDownloadOptionsAsync(string videoId)
         {
-            var result = new List<DownloadOption>();
+            var options = new HashSet<DownloadOption>(DownloadOptionEqualityComparer.Instance);
 
-            // Get media stream info set
-            var mediaStreamInfoSet = await _youtubeClient.GetVideoMediaStreamInfosAsync(videoId);
+            var streamManifest = await _youtube.Videos.Streams.GetManifestAsync(videoId);
 
-            // Prefer adaptive streams if possible
-            if (mediaStreamInfoSet.Audio.Any() && mediaStreamInfoSet.Video.Any())
+            // Best audio stream (muxed or audio-only)
+            var bestAudioOnlyStreamInfo = streamManifest
+                .GetAudio()
+                .OrderByDescending(s => s.Container == Container.WebM)
+                .ThenByDescending(s => s.Bitrate)
+                .FirstOrDefault();
+
+            // Video streams
+            var videoStreams = streamManifest
+                .GetVideo()
+                .OrderByDescending(v => v.VideoQuality)
+                .ThenByDescending(v => v.Framerate);
+
+            foreach (var streamInfo in videoStreams)
             {
-                // Sort video streams
-                var videoStreamInfos = mediaStreamInfoSet.Video
-                    .OrderByDescending(s => s.VideoQuality)
-                    .ThenByDescending(s => s.Framerate)
-                    .ToArray();
+                var format = streamInfo.Container.Name;
+                var label = streamInfo.VideoQualityLabel;
 
-                // Add video download options
-                foreach (var videoStreamInfo in videoStreamInfos)
-                {
-                    // Get format
-                    var format = videoStreamInfo.Container.GetFileExtension();
-
-                    // Get best audio stream, preferably with the same container
-                    var audioStreamInfo = mediaStreamInfoSet.Audio
-                        .OrderByDescending(s => s.Container == videoStreamInfo.Container)
-                        .ThenByDescending(s => s.Bitrate)
-                        .First();
-
-                    // Add to list
-                    result.Add(new DownloadOption(format, audioStreamInfo, videoStreamInfo));
-                }
-
-                // Add audio-only download options
-                {
-                    // Get best audio stream, preferably with webm container
-                    var audioStreamInfo = mediaStreamInfoSet.Audio
-                        .OrderByDescending(s => s.Container == Container.WebM)
-                        .ThenByDescending(s => s.Bitrate)
-                        .First();
-
-                    // Add to list
-                    result.Add(new DownloadOption("mp3", audioStreamInfo));
-                    result.Add(new DownloadOption("ogg", audioStreamInfo));
-                }
-            }
-            // Fallback to muxed streams
-            else if (mediaStreamInfoSet.Muxed.Any())
-            {
-                // Sort muxed streams
-                var muxedStreamInfos = mediaStreamInfoSet.Muxed
-                    .OrderByDescending(s => s.VideoQuality)
-                    .ToArray();
-
-                // Add video download options
-                foreach (var muxedStreamInfo in muxedStreamInfos)
-                {
-                    // Get format
-                    var format = muxedStreamInfo.Container.GetFileExtension();
-
-                    // Add to list
-                    result.Add(new DownloadOption(format, muxedStreamInfo));
-                }
-
-                // Add audio-only download options
-                {
-                    // Use best muxed stream as the audio stream, preferably with webm container
-                    var bestMuxedStreamInfo = muxedStreamInfos
-                        .OrderByDescending(s => s.Container == Container.WebM)
-                        .First();
-
-                    // Add to list
-                    result.Add(new DownloadOption("mp3", bestMuxedStreamInfo));
-                    result.Add(new DownloadOption("ogg", bestMuxedStreamInfo));
-                }
+                // Muxed streams are standalone, video-only need to be merged with audio
+                if (streamInfo is VideoOnlyStreamInfo && bestAudioOnlyStreamInfo != null)
+                    options.Add(new DownloadOption(format, label, streamInfo, bestAudioOnlyStreamInfo));
+                else
+                    options.Add(new DownloadOption(format, label, streamInfo));
             }
 
-            return result;
+            // Additional options
+            if (bestAudioOnlyStreamInfo != null)
+            {
+                options.Add(new DownloadOption("mp3", "Audio", bestAudioOnlyStreamInfo));
+                options.Add(new DownloadOption("ogg", "Audio", bestAudioOnlyStreamInfo));
+            }
+
+            return options.ToArray();
         }
 
         public async Task<DownloadOption> GetBestDownloadOptionAsync(string videoId, string format)

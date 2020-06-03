@@ -1,22 +1,19 @@
-﻿using Stylet;
+﻿using System;
+using Stylet;
 
 namespace YoutubeDownloader.ViewModels.Framework
 {
-    public abstract class DialogScreen<T> : Screen
+    public abstract class DialogScreen<T> : PropertyChangedBase
     {
-        public T DialogResult { get; private set; }
+        // ReSharper disable once RedundantDefaultMemberInitializer
+        public T DialogResult { get; private set; } = default!;
 
-        public void Close(T dialogResult = default(T))
+        public event EventHandler? Closed;
+
+        public void Close(T dialogResult = default)
         {
-            // Set the result
             DialogResult = dialogResult;
-
-            // If there is a parent - ask them to close this dialog
-            if (Parent != null)
-                RequestClose(Equals(dialogResult, default(T)));
-            // Otherwise close ourselves
-            else
-                ((IScreenState) this).Close();
+            Closed?.Invoke(this, EventArgs.Empty);
         }
     }
 

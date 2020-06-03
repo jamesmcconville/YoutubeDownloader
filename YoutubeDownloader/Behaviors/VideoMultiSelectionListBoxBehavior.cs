@@ -3,8 +3,8 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interactivity;
-using YoutubeExplode.Models;
+using Microsoft.Xaml.Behaviors;
+using YoutubeExplode.Videos;
 
 namespace YoutubeDownloader.Behaviors
 {

@@ -1,10 +1,16 @@
 ﻿using System.IO;
-using Tyrrrz.Extensions;
+using System.Linq;
 
 namespace YoutubeDownloader.Internal
 {
     internal static class FileEx
     {
+        public static string MakeSafeFileName(string fileName) =>
+            Path.GetInvalidFileNameChars().Aggregate(fileName, (current, invalidChar) => current.Replace(invalidChar, '_'));
+
+        public static string MakeSafeDirectoryName(string directoryName) =>
+            MakeSafeFileName(directoryName).Replace('.', '_');
+
         public static string MakeUniqueFilePath(string baseFilePath, int maxAttempts = 100)
         {
             // Check if base file path exists
@@ -21,7 +27,7 @@ namespace YoutubeDownloader.Internal
             {
                 // Assemble file path
                 var filePath = $"{baseFileNameWithoutExtension} ({i}){baseFileExtension}";
-                if (!baseDirPath.IsNullOrWhiteSpace())
+                if (!string.IsNullOrWhiteSpace(baseDirPath))
                     filePath = Path.Combine(baseDirPath, filePath);
 
                 // Check if file exists
@@ -34,5 +40,12 @@ namespace YoutubeDownloader.Internal
         }
 
         public static void CreateEmptyFile(string filePath) => File.WriteAllText(filePath, "");
+
+        public static void CreateDirectoriesForFile(string filePath)
+        {
+            var dirPath = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrWhiteSpace(dirPath))
+                Directory.CreateDirectory(dirPath);
+        }
     }
 }

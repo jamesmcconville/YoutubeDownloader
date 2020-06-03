@@ -1,5 +1,6 @@
-﻿using System.Collections.Generic;
-using YoutubeExplode.Models.MediaStreams;
+﻿using System;
+using System.Collections.Generic;
+using YoutubeExplode.Videos.Streams;
 
 namespace YoutubeDownloader.Models
 {
@@ -9,30 +10,34 @@ namespace YoutubeDownloader.Models
 
         public string Label { get; }
 
-        public IReadOnlyList<MediaStreamInfo> MediaStreamInfos { get; }
+        public IReadOnlyList<IStreamInfo> StreamInfos { get; }
 
-        public DownloadOption(string format, string label, IReadOnlyList<MediaStreamInfo> mediaStreamInfos)
+        public DownloadOption(string format, string label, IReadOnlyList<IStreamInfo> streamInfos)
         {
             Format = format;
             Label = label;
-            MediaStreamInfos = mediaStreamInfos;
+            StreamInfos = streamInfos;
         }
 
-        public DownloadOption(string format, AudioStreamInfo audioStreamInfo)
-            : this(format, "Audio", new[] {audioStreamInfo})
-        {
-        }
-
-        public DownloadOption(string format, AudioStreamInfo audioStreamInfo, VideoStreamInfo videoStreamInfo)
-            : this(format, videoStreamInfo.VideoQualityLabel, new MediaStreamInfo[] {audioStreamInfo, videoStreamInfo})
-        {
-        }
-
-        public DownloadOption(string format, MuxedStreamInfo muxedStreamInfo)
-            : this(format, muxedStreamInfo.VideoQualityLabel, new[] {muxedStreamInfo})
+        public DownloadOption(string format, string label, params IStreamInfo[] streamInfos)
+            : this(format, label, (IReadOnlyList<IStreamInfo>) streamInfos)
         {
         }
 
         public override string ToString() => $"{Label} / {Format}";
+    }
+
+    public class DownloadOptionEqualityComparer : IEqualityComparer<DownloadOption>
+    {
+        public static DownloadOptionEqualityComparer Instance { get; } = new DownloadOptionEqualityComparer();
+
+        public bool Equals(DownloadOption x, DownloadOption y) =>
+            StringComparer.OrdinalIgnoreCase.Equals(x.Format, y.Format) &&
+            StringComparer.OrdinalIgnoreCase.Equals(x.Label, y.Label);
+
+        public int GetHashCode(DownloadOption obj) => HashCode.Combine(
+            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Format),
+            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Label)
+        );
     }
 }

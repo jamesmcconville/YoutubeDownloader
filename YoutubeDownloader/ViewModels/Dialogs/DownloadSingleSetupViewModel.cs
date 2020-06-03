@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Tyrrrz.Extensions;
+using System.Windows;
 using YoutubeDownloader.Internal;
 using YoutubeDownloader.Models;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.ViewModels.Components;
 using YoutubeDownloader.ViewModels.Framework;
-using YoutubeExplode.Models;
+using YoutubeExplode.Videos;
 
 namespace YoutubeDownloader.ViewModels.Dialogs
 {
@@ -15,6 +15,8 @@ namespace YoutubeDownloader.ViewModels.Dialogs
         private readonly IViewModelFactory _viewModelFactory;
         private readonly SettingsService _settingsService;
         private readonly DialogManager _dialogManager;
+
+        public string Title { get; set; }
 
         public Video Video { get; set; }
 
@@ -30,14 +32,12 @@ namespace YoutubeDownloader.ViewModels.Dialogs
             _dialogManager = dialogManager;
         }
 
-        protected override void OnViewLoaded()
+        public void OnViewLoaded()
         {
-            base.OnViewLoaded();
-
             // Select first download option matching last used format or first non-audio-only download option
             SelectedDownloadOption =
                 AvailableDownloadOptions.FirstOrDefault(o => o.Format == _settingsService.LastFormat) ??
-                AvailableDownloadOptions.OrderByDescending(o => !o.Label.IsNullOrWhiteSpace()).FirstOrDefault();
+                AvailableDownloadOptions.OrderByDescending(o => !string.IsNullOrWhiteSpace(o.Label)).FirstOrDefault();
         }
 
         public bool CanConfirm => Video != null;
@@ -48,11 +48,11 @@ namespace YoutubeDownloader.ViewModels.Dialogs
 
             // Prompt user for output file path
             var filter = $"{format.ToUpperInvariant()} file|*.{format}";
-            var defaultFileName = $"{Video.GetFileNameSafeTitle()}.{format}";
+            var defaultFileName = FileNameGenerator.GenerateFileName(_settingsService.FileNameTemplate, Video, format);
             var filePath = _dialogManager.PromptSaveFilePath(filter, defaultFileName);
 
             // If canceled - return
-            if (filePath.IsNullOrWhiteSpace())
+            if (string.IsNullOrWhiteSpace(filePath))
                 return;
 
             // Save last used format
@@ -62,10 +62,13 @@ namespace YoutubeDownloader.ViewModels.Dialogs
             var download = _viewModelFactory.CreateDownloadViewModel(Video, filePath, format, SelectedDownloadOption);
 
             // Create empty file to "lock in" the file path
+            FileEx.CreateDirectoriesForFile(filePath);
             FileEx.CreateEmptyFile(filePath);
 
             // Close dialog
             Close(download);
         }
+
+        public void CopyTitle() => Clipboard.SetText(Title);
     }
 }

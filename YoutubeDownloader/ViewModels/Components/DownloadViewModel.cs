@@ -4,11 +4,11 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Gress;
+using YoutubeDownloader.Internal;
 using YoutubeDownloader.Models;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.ViewModels.Framework;
-using YoutubeExplode.Models;
-using PropertyChangedBase = Stylet.PropertyChangedBase;
+using YoutubeExplode.Videos;
 
 namespace YoutubeDownloader.ViewModels.Components
 {
@@ -16,9 +16,11 @@ namespace YoutubeDownloader.ViewModels.Components
     {
         private readonly IViewModelFactory _viewModelFactory;
         private readonly DialogManager _dialogManager;
+        private readonly SettingsService _settingsService;
         private readonly DownloadService _downloadService;
+        private readonly TaggingService _taggingService;
 
-        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationTokenSource? _cancellationTokenSource;
 
         public Video Video { get; set; }
 
@@ -28,7 +30,7 @@ namespace YoutubeDownloader.ViewModels.Components
 
         public string Format { get; set; }
 
-        public DownloadOption DownloadOption { get; set; }
+        public DownloadOption? DownloadOption { get; set; }
 
         public IProgressManager ProgressManager { get; set; }
 
@@ -42,13 +44,16 @@ namespace YoutubeDownloader.ViewModels.Components
 
         public bool IsFailed { get; private set; }
 
-        public string FailReason { get; private set; }
+        public string? FailReason { get; private set; }
 
-        public DownloadViewModel(IViewModelFactory viewModelFactory, DialogManager dialogManager, DownloadService downloadService)
+        public DownloadViewModel(IViewModelFactory viewModelFactory, DialogManager dialogManager, SettingsService settingsService,
+            DownloadService downloadService, TaggingService taggingService)
         {
             _viewModelFactory = viewModelFactory;
             _dialogManager = dialogManager;
+            _settingsService = settingsService;
             _downloadService = downloadService;
+            _taggingService = taggingService;
         }
 
         public bool CanStart => !IsActive;
@@ -79,6 +84,9 @@ namespace YoutubeDownloader.ViewModels.Components
 
                     await _downloadService.DownloadVideoAsync(DownloadOption, FilePath, ProgressOperation, _cancellationTokenSource.Token);
 
+                    if (_settingsService.ShouldInjectTags)
+                        await _taggingService.InjectTagsAsync(Video, Format, FilePath, _cancellationTokenSource.Token);
+
                     IsSuccessful = true;
                 }
                 catch (OperationCanceledException)
@@ -107,7 +115,7 @@ namespace YoutubeDownloader.ViewModels.Components
             if (!CanCancel)
                 return;
 
-            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource?.Cancel();
         }
 
         public bool CanShowFile => IsSuccessful;
@@ -138,8 +146,8 @@ namespace YoutubeDownloader.ViewModels.Components
 
             try
             {
-                // This opens the video file using the default player
-                Process.Start(FilePath);
+                // Open video file using default player
+                ProcessEx.StartShellExecute(FilePath);
             }
             catch (Exception ex)
             {

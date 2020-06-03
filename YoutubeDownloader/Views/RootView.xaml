@@ -54,11 +54,16 @@
                             x:Name="QueryTextBox"
                             Grid.Column="0"
                             Margin="6"
-                            materialDesign:HintAssist.Hint="URL or search query"
+                            VerticalAlignment="Bottom"
+                            materialDesign:HintAssist.Hint="URL or search query (press Shift+Enter to add multiple)"
                             materialDesign:TextFieldAssist.DecorationVisibility="Hidden"
+                            AcceptsReturn="True"
                             BorderThickness="0"
                             FontSize="16"
-                            Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" />
+                            MaxLines="4"
+                            PreviewKeyDown="QueryTextBox_OnPreviewKeyDown"
+                            Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                            VerticalScrollBarVisibility="Auto" />
 
                         <!--  Process query button  -->
                         <Button
@@ -67,7 +72,8 @@
                             Padding="4"
                             Command="{s:Action ProcessQuery}"
                             IsDefault="True"
-                            Style="{DynamicResource MaterialDesignFlatButton}">
+                            Style="{DynamicResource MaterialDesignFlatButton}"
+                            ToolTip="Process query (Enter)">
                             <materialDesign:PackIcon
                                 Width="24"
                                 Height="24"
@@ -82,7 +88,8 @@
                     Margin="6"
                     Padding="4"
                     Command="{s:Action ShowSettings}"
-                    Style="{DynamicResource MaterialDesignFlatDarkButton}">
+                    Style="{DynamicResource MaterialDesignFlatDarkButton}"
+                    ToolTip="Settings">
                     <materialDesign:PackIcon
                         Width="24"
                         Height="24"
@@ -127,7 +134,9 @@
                                             Command="{s:Action RemoveDownload}"
                                             CommandParameter="{Binding}"
                                             Header="Remove download" />
-                                        <MenuItem Command="{s:Action RemoveInactiveDownloads}" Header="Remove all finished downloads" />
+                                        <MenuItem Command="{s:Action RemoveInactiveDownloads}" Header="Remove all inactive downloads" />
+                                        <MenuItem Command="{s:Action RemoveSuccessfulDownloads}" Header="Remove all successful downloads" />
+                                        <MenuItem Command="{s:Action RestartFailedDownloads}" Header="Restart all failed downloads" />
                                     </ContextMenu>
                                 </Setter.Value>
                             </Setter>

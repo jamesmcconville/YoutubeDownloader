@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Tyrrrz.Extensions;
+using System.Windows;
 using YoutubeDownloader.Internal;
 using YoutubeDownloader.Services;
 using YoutubeDownloader.ViewModels.Components;
 using YoutubeDownloader.ViewModels.Framework;
-using YoutubeExplode.Models;
+using YoutubeExplode.Videos;
 
 namespace YoutubeDownloader.ViewModels.Dialogs
 {
@@ -15,6 +15,8 @@ namespace YoutubeDownloader.ViewModels.Dialogs
         private readonly IViewModelFactory _viewModelFactory;
         private readonly SettingsService _settingsService;
         private readonly DialogManager _dialogManager;
+
+        public string Title { get; set; }
 
         public IReadOnlyList<Video> AvailableVideos { get; set; }
 
@@ -32,17 +34,15 @@ namespace YoutubeDownloader.ViewModels.Dialogs
             _dialogManager = dialogManager;
         }
 
-        protected override void OnViewLoaded()
+        public void OnViewLoaded()
         {
-            base.OnViewLoaded();
-
             // Select last used format
-            SelectedFormat = AvailableFormats.Contains(_settingsService.LastFormat)
+            SelectedFormat = !string.IsNullOrWhiteSpace(_settingsService.LastFormat) && AvailableFormats.Contains(_settingsService.LastFormat)
                 ? _settingsService.LastFormat
                 : AvailableFormats.FirstOrDefault();
         }
 
-        public bool CanConfirm => !SelectedVideos.IsNullOrEmpty();
+        public bool CanConfirm => SelectedVideos != null && SelectedVideos.Any();
 
         public void Confirm()
         {
@@ -50,24 +50,37 @@ namespace YoutubeDownloader.ViewModels.Dialogs
             var dirPath = _dialogManager.PromptDirectoryPath();
 
             // If canceled - return
-            if (dirPath.IsNullOrWhiteSpace())
+            if (string.IsNullOrWhiteSpace(dirPath))
                 return;
 
             // Save last used format
             _settingsService.LastFormat = SelectedFormat;
 
+            // Make sure selected videos are ordered in the same way as available videos
+            var orderedSelectedVideos = AvailableVideos.Where(v => SelectedVideos.Contains(v)).ToArray();
+
             // Create download view models
             var downloads = new List<DownloadViewModel>();
-            foreach (var video in SelectedVideos)
+            for (var i = 0; i < orderedSelectedVideos.Length; i++)
             {
+                var video = orderedSelectedVideos[i];
+
                 // Generate file path
-                var fileName = $"{video.GetFileNameSafeTitle()}.{SelectedFormat}";
+                var number = (i + 1).ToString().PadLeft(orderedSelectedVideos.Length.ToString().Length, '0');
+                var fileName = FileNameGenerator.GenerateFileName(_settingsService.FileNameTemplate, video, SelectedFormat, number);
                 var filePath = Path.Combine(dirPath, fileName);
 
-                // Ensure file paths are unique because users will not be able to confirm overwrites
-                filePath = FileEx.MakeUniqueFilePath(filePath);
+                // If file exists - either skip it or generate a unique file path, depending on user settings
+                if (File.Exists(filePath))
+                {
+                    if (_settingsService.ShouldSkipExistingFiles && new FileInfo(filePath).Length > 0)
+                        continue;
+
+                    filePath = FileEx.MakeUniqueFilePath(filePath);
+                }
 
                 // Create empty file to "lock in" the file path
+                FileEx.CreateDirectoriesForFile(filePath);
                 FileEx.CreateEmptyFile(filePath);
 
                 // Create download view model
@@ -80,5 +93,7 @@ namespace YoutubeDownloader.ViewModels.Dialogs
             // Close dialog
             Close(downloads);
         }
+
+        public void CopyTitle() => Clipboard.SetText(Title);
     }
 }

@@ -9,6 +9,7 @@
     xmlns:s="https://github.com/canton7/Stylet"
     MinWidth="500"
     d:DataContext="{d:DesignInstance Type=dialogs:DownloadSingleSetupViewModel}"
+    Loaded="{s:Action OnViewLoaded}"
     Style="{DynamicResource MaterialDesignRoot}"
     mc:Ignorable="d">
     <Grid>
@@ -25,9 +26,15 @@
             Margin="8,16,8,8"
             FontSize="19"
             Foreground="{DynamicResource PrimaryTextBrush}"
-            Text="{Binding DisplayName}"
+            Text="{Binding Title}"
             TextTrimming="CharacterEllipsis"
-            ToolTip="{Binding DisplayName}" />
+            ToolTip="{Binding Title}">
+            <TextBlock.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Command="{s:Action CopyTitle}" Header="Copy" />
+                </ContextMenu>
+            </TextBlock.ContextMenu>
+        </TextBlock>
 
         <!--  Author and upload date  -->
         <Grid Grid.Row="1" Margin="8,0">
